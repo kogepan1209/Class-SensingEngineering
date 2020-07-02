@@ -129,8 +129,8 @@ if __name__ == '__main__':
                 R[i][j] = 0
 
     #バッチ型最小二乗法による推定
-    print('Start Batch LSM')
-    BatchLSM(Z, A, R)
+    #print('Start Batch LSM')
+    #BatchLSM(Z, A, R)
     
     #推定値x_hatの初期値(3*1)
     x_hat_init = np.zeros(3)

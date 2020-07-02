@@ -1,6 +1,6 @@
 import numpy as np
 
-#Z~(k+1)
+#Z~(k+1|k)
 def calc_Ztidlek1(zk1, ak1, x_hat):
     temp = np.dot(ak1, x_hat)
     Ztidlek1 = zk1 - temp
@@ -19,14 +19,19 @@ def calc_Wk1(Pk, ak1, Sk1):
     Wk1 = np.dot(Wk1, np.linalg.inv(Sk1))
     return Wk1
 
-#P(k+1)
+#P(k|k)
 def calc_Pk1(Pk, Wk1, Sk1):
     temp = np.dot(Wk1, Sk1)
     temp = np.dot(temp, Wk1.T)
     Pk1 = Pk - temp
     return Pk1
 
-#x^(k+1)
+#P(k+1|k)
+def calc_Pk2(Pk, Qk1):
+    Pk1 = Pk - Qk1
+    return Pk1
+
+#x^(k+1|k+1)
 def calc_x_hatk1(x_hat, Wk1, Ztidlek1):
     temp = np.dot(Wk1, Ztidlek1)
     x_hatk1 = x_hat + temp
@@ -47,51 +52,6 @@ def get_Rk1(R, k):
     Rk1 = [R[(k+1)+15][(k+1)+15]]
     return np.array(Rk1)
 
-#バッチ型最小二乗法
-def BatchLSM(Z, A, R):
-    print('推定値')
-    temp = np.dot(A.T, np.linalg.inv(R))
-    temp = np.dot(temp, A)
-    temp = np.linalg.inv(temp)
-    temp = np.dot(temp, A.T)
-    temp = np.dot(temp, np.linalg.inv(R))
-    temp = np.dot(temp, Z)
-    print(temp)
-
-#逐次型最小二乗法
-def SequentialLSM(x_hat_init, Pk_init, Z, A, R):
-    #k=-16のときの初期値
-    x_hat = x_hat_init
-    print('推定値の初期値x_hat(-16) =', x_hat)
-    Pk = Pk_init
-    print('推定誤差共分散の初期値P(-16) =\n', Pk)
-
-    for k in range(-16, 15):
-        #必要となる観測情報
-        zk1 = get_zk1(Z, k)
-        ak1 = get_ak1(A, k)
-        Rk1 = get_Rk1(R, k)
-
-        #Z~(k+1)の計算
-        Ztidlek1 = calc_Ztidlek1(zk1, ak1, x_hat)
-        print('観測予測誤差Z~(', k+1, ') =', Ztidlek1)
-
-        #S(k+1)の計算
-        Sk1 = calc_Sk1(ak1, Pk, Rk1)
-        print('観測予測誤差共分散S(', k+1, ') =', Sk1)
-
-        #W(k+1)の計算
-        Wk1 = calc_Wk1(Pk, ak1, Sk1)
-        print('フィルタゲインW(', k+1, ') =\n', Wk1)
-
-        #P(k+1)の計算
-        Pk = calc_Pk1(Pk, Wk1, Sk1)
-        print('推定誤差共分散P(', k+1, ') =\n', Pk)
-
-        #x^(k+1)の計算
-        x_hat = calc_x_hatk1(x_hat, Wk1, Ztidlek1)
-        print('推定値x^(', k+1, ') =', x_hat)
-
 #カルマンフィルタ
 def KalmanFiltering(x_hat_init, Pk_init, Z, A, R):
     #k=-16のときの初期値
@@ -99,6 +59,37 @@ def KalmanFiltering(x_hat_init, Pk_init, Z, A, R):
     print('推定値の初期値x_hat(-16) =', x_hat)
     Pk = Pk_init
     print('推定誤差共分散の初期値P(-16) =\n', Pk)
+    Qk = Qk_init
+    print('プラント雑音共分散の初期値Q(-16) =\n', Qk)
+
+    for k in range(-16, 15):
+        zk1 = get_zk1(Z, k)
+        ak1 = get_ak1(A, k)
+        Rk1 = get_Rk1(R, k)
+
+        #Z~(k+1|k)
+        Ztidlek1 = calc_Ztidlek1(zk1, ak1, x_hat)
+        print('観測予測誤差Z~(', k+1, ') =', Ztidlek1)
+
+        #S(k+1)
+        Sk1 = calc_Sk1(ak1, Pk, Rk1)
+        print('観測予測誤差共分散S(', k+1, ') =', Sk1)
+
+        #W(k+1)
+        Wk1 = calc_Wk1(Pk, ak1, Sk1)
+        print('フィルタゲインW(', k+1, ') =\n', Wk1)
+
+        #P(k|k)
+        Pk = calc_Pk1(Pk, Wk1, Sk1)
+        print('推定誤差共分散P(', k+1, ') =\n', Pk)
+
+        #P(k+1|k)
+        Pk = calc_Pk2(Pk, Qk)
+        print('予測誤差共分散P(', k+1, '|', k, ') =\n', Pk)
+
+        #x^(k+1)の計算
+        x_hat = calc_x_hatk1(x_hat, Wk1, Ztidlek1)
+        print('推定値x^(', k+1, ') =', x_hat)
 
 #メイン
 if __name__ == '__main__':
@@ -135,10 +126,6 @@ if __name__ == '__main__':
             #非対角成分
             else:
                 R[i][j] = 0
-
-    #バッチ型最小二乗法による推定
-    #print('Start Batch LSM')
-    #BatchLSM(Z, A, R)
     
     #推定値x_hatの初期値(3*1)
     x_hat_init = np.zeros(3)
@@ -147,9 +134,11 @@ if __name__ == '__main__':
     Pk_init = np.zeros((3, 3))
     #対角成分を初期値を10^6にする（変更すると推定精度が変わる）
     np.fill_diagonal(Pk_init, 1000000)
-
-    #print('Start Sequential LSM')
-    #SequentialLSM(x_hat_init, Pk_init, Z, A, R)
+    
+    #プラント雑音共分散行列qの初期値(3*3)
+    Qk_init = np.zeros((3, 3))
+    #対角成分を初期値を10^6にする（変更すると推定精度が変わる）
+    np.fill_diagonal(Qk_init, 0)
 
     print('Start Kalman Filtering')
     KalmanFiltering(x_hat_init, Pk_init, Z, A, R)
