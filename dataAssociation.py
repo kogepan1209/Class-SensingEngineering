@@ -81,10 +81,13 @@ def KalmanFiltering(x_hat_init, Pk_init, Qk_init, Z, A, R):
         Sk1 = calc_Sk1(ak1, Pk, Rk1)
         print('観測予測誤差共分散S(', k+1, ') =', Sk1)
 
+        #Z(k)
+        print('観測値 Z(', k+1, ') =', zk1)
+
         #E(z)
         E = calc_epsilon(Ztidlek1, Sk1)
         print('epsilon E(', k+1, ') =', E)
-        
+
         #W(k+1)
         Wk1 = calc_Wk1(Pk, ak1, Sk1)
         print('フィルタゲインW(', k+1, ') =\n', Wk1)
