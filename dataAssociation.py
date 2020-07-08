@@ -37,6 +37,12 @@ def calc_x_hatk1(x_hat, Wk1, Ztidlek1):
     x_hatk1 = x_hat + temp
     return x_hatk1
 
+#E(z)
+def calc_epsilon(Z, S):
+    epsilon = np.dot(Z.T, np.linalg.inv(S))
+    epsilon = np.dot(epsilon, Z)
+    return epsilon
+
 #観測値z(k+1)（array）
 def get_zk1(Z, k):
     zk1 = [Z[(k+1)+15]]
@@ -53,7 +59,7 @@ def get_Rk1(R, k):
     return np.array(Rk1)
 
 #カルマンフィルタ
-def KalmanFiltering(x_hat_init, Pk_init, Z, A, R):
+def KalmanFiltering(x_hat_init, Pk_init, Qk_init, Z, A, R):
     #k=-16のときの初期値
     x_hat = x_hat_init
     print('推定値の初期値x_hat(-16) =', x_hat)
@@ -75,6 +81,10 @@ def KalmanFiltering(x_hat_init, Pk_init, Z, A, R):
         Sk1 = calc_Sk1(ak1, Pk, Rk1)
         print('観測予測誤差共分散S(', k+1, ') =', Sk1)
 
+        #E(z)
+        E = calc_epsilon(Ztidlek1, Sk1)
+        print('epsilon E(', k+1, ') =', E)
+        
         #W(k+1)
         Wk1 = calc_Wk1(Pk, ak1, Sk1)
         print('フィルタゲインW(', k+1, ') =\n', Wk1)
@@ -127,18 +137,18 @@ if __name__ == '__main__':
             else:
                 R[i][j] = 0
     
-    #推定値x_hatの初期値(3*1)
+    #推定値x_hat
     x_hat_init = np.zeros(3)
 
-    #推定誤差共分散行列Pの初期値(3*3)
+    #推定誤差共分散行列P
     Pk_init = np.zeros((3, 3))
-    #対角成分を初期値を10^6にする（変更すると推定精度が変わる）
+    #対角成分（変更すると推定精度が変わる）
     np.fill_diagonal(Pk_init, 1000000)
     
-    #プラント雑音共分散行列qの初期値(3*3)
+    #プラント雑音共分散行列q
     Qk_init = np.zeros((3, 3))
-    #対角成分を初期値を10^6にする（変更すると推定精度が変わる）
+    #対角成分（変更すると推定精度が変わる）
     np.fill_diagonal(Qk_init, 0)
 
     print('Start Kalman Filtering')
-    KalmanFiltering(x_hat_init, Pk_init, Z, A, R)
+    KalmanFiltering(x_hat_init, Pk_init, Qk_init, Z, A, R)
